@@ -37,6 +37,8 @@
 | CRYSTALS-Kyber | NIST Round 2 submission  | kyber90s768    | 2            |                    3 | 0x2F2A       | secp384_r1                       |
 | CRYSTALS-Kyber | NIST Round 3 submission  | kyber1024      | 3            |                    5 | 0x023D       |                                  |
 | CRYSTALS-Kyber | NIST Round 3 submission  | kyber1024      | 3            |                    5 | 0x2F3D       | secp521_r1                       |
+| CRYSTALS-Kyber | NIST Round 3 submission  | kyber512_oqkd  | 3            |                    1 | 0x029A       |                                  |
+| CRYSTALS-Kyber | NIST Round 3 submission  | kyber512_oqkd  | 3            |                    1 | 0x2F9A       | secp256_r1                       |
 | CRYSTALS-Kyber | NIST Round 3 submission  | kyber512       | 3            |                    1 | 0x023A       |                                  |
 | CRYSTALS-Kyber | NIST Round 3 submission  | kyber512       | 3            |                    1 | 0x2F39       | x25519                           |
 | CRYSTALS-Kyber | NIST Round 3 submission  | kyber512       | 3            |                    1 | 0x2F3A       | secp256_r1                       |

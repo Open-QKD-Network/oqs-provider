@@ -394,6 +394,12 @@ kems:
           nist-round: 3
           hybrid_group: secp521_r1
           nid: '0x2F2E'
+  -
+    family: 'CRYSTALS-Kyber'
+    name_group: 'kyber512_oqkd'
+    nid: '0x029A'
+    nid_hybrid: '0x2F9A'
+    oqs_alg: 'OQS_KEM_alg_kyber_512'
 
 kem_nid_end: '0x0250'
 kem_nid_hybrid_end: '0x2FFF'
