@@ -25,14 +25,20 @@
 #    define OQS_PROV_PRINTF3(a, b, c)
 #else
 #    define OQS_PROV_PRINTF(a) \
-        if (getenv("OQSPROV")) \
-        printf(a)
+        if (getenv("OQSPROV")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a);}
 #    define OQS_PROV_PRINTF2(a, b) \
-        if (getenv("OQSPROV"))     \
-        printf(a, b)
+        if (getenv("OQSPROV")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a, b);}
 #    define OQS_PROV_PRINTF3(a, b, c) \
-        if (getenv("OQSPROV"))        \
-        printf(a, b, c)
+        if (getenv("OQSPROV")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a, b, c);}
 #endif // NDEBUG
 
 /*
@@ -1396,10 +1402,10 @@ int OQS_PROVIDER_ENTRYPOINT_NAME(const OSSL_CORE_HANDLE *handle,
 
 end_init:
     if (!rc) {
-        if (ossl_versionp)
+        if (ossl_versionp) {
             OQS_PROV_PRINTF2(
                 "oqsprovider init failed for OpenSSL core version %s\n",
-                ossl_versionp);
+                ossl_versionp); }
         else
             OQS_PROV_PRINTF("oqsprovider init failed for OpenSSL\n");
         if (libctx)

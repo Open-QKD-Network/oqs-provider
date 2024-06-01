@@ -24,14 +24,20 @@
 #    define OQS_KEY_PRINTF3(a, b, c)
 #else
 #    define OQS_KEY_PRINTF(a) \
-        if (getenv("OQSKEY")) \
-        printf(a)
+        if (getenv("OQSKEY")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a);}
 #    define OQS_KEY_PRINTF2(a, b) \
-        if (getenv("OQSKEY"))     \
-        printf(a, b)
+        if (getenv("OQSKEY")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a, b);}
 #    define OQS_KEY_PRINTF3(a, b, c) \
-        if (getenv("OQSKEY"))        \
-        printf(a, b, c)
+        if (getenv("OQSKEY")) { \
+        printf(__func__); \
+        printf(" "); \
+        printf(a, b, c);}
 #endif // NDEBUG
 
 typedef enum {
