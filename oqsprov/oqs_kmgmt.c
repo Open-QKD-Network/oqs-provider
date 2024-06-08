@@ -465,6 +465,7 @@ static int oqsx_get_params(void *key, OSSL_PARAM params[])
         // not be passed out:
         if (oqsxk->keytype == KEY_TYPE_ECP_HYB_KEM
             || oqsxk->keytype == KEY_TYPE_ECX_HYB_KEM) {
+            printf("----Pass hybrid public key %p to OpenSSL core:%d\n", (char *)oqsxk->pubkey + SIZE_OF_UINT32, oqsxk->pubkeylen - SIZE_OF_UINT32);
             if (!OSSL_PARAM_set_octet_string(
                     p, (char *)oqsxk->pubkey + SIZE_OF_UINT32,
                     oqsxk->pubkeylen - SIZE_OF_UINT32))
@@ -538,6 +539,9 @@ static int oqsx_set_params(void *key, const OSSL_PARAM params[])
             || oqsxkey->keytype == KEY_TYPE_ECX_HYB_KEM) {
             // classic key len already stored by key setup; only data needs to
             // be filled in
+            // On server side, parse keyshare in client hello
+            // THIS ALSO COPY THE PQC KEY TO comp_pubkey[1]!!!
+            printf("----Set com_pubkey[0] with len :%d\n", oqsxkey->pubkeylen);
             if (p->data_size != oqsxkey->pubkeylen - SIZE_OF_UINT32
                 || !OSSL_PARAM_get_octet_string(
                     p, &oqsxkey->comp_pubkey[0],

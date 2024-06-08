@@ -330,6 +330,12 @@ static int oqsx_key_set_composites(OQSX_KEY *key)
                 }
                 key->comp_pubkey[1]
                     = (char *)key->pubkey + classic_pubkey_len + SIZE_OF_UINT32;
+		printf("----Set composite pub :%p\n", key->pubkey);
+		printf("----Set composite pub0:%p\n", key->comp_pubkey[0]);
+		printf("----Set composite pub0:%p\n", key->comp_pubkey[1]);
+		printf("----Set composite priv :%p\n", key->privkey);
+		printf("----Set composite priv0:%p\n", key->comp_privkey[0]);
+		printf("----Set composite priv0:%p\n", key->comp_privkey[1]);
             } else {
                 key->comp_pubkey[0] = NULL;
                 key->comp_pubkey[1] = NULL;
@@ -1438,6 +1444,8 @@ OQSX_KEY *oqsx_key_new(OSSL_LIB_CTX *libctx, char *oqs_name, char *tls_name,
         evp_ctx = OPENSSL_zalloc(sizeof(OQSX_EVP_CTX));
         ON_ERR_GOTO(!evp_ctx, err);
 
+        // Check if it is oqkd triple key exchange tls_name p256_kyber_oqkd
+        // because of the following function, oqkd must be the last world in tls_name.
         ret2 = (init_kex_fun[primitive - KEY_TYPE_ECP_HYB_KEM])(tls_name,
                                                                 evp_ctx);
         ON_ERR_GOTO(ret2 <= 0 || !evp_ctx->keyParam || !evp_ctx->ctx, err);
@@ -1446,6 +1454,7 @@ OQSX_KEY *oqsx_key_new(OSSL_LIB_CTX *libctx, char *oqs_name, char *tls_name,
         ret->comp_privkey = OPENSSL_malloc(ret->numkeys * sizeof(void *));
         ret->comp_pubkey = OPENSSL_malloc(ret->numkeys * sizeof(void *));
         ON_ERR_GOTO(!ret->comp_privkey || !ret->comp_pubkey, err);
+        // ffs We must add oqd site id to public key
         ret->privkeylen
             = (ret->numkeys - 1) * SIZE_OF_UINT32
               + ret->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_secret_key
@@ -1457,6 +1466,7 @@ OQSX_KEY *oqsx_key_new(OSSL_LIB_CTX *libctx, char *oqs_name, char *tls_name,
         ret->oqsx_provider_ctx.oqsx_evp_ctx = evp_ctx;
         ret->keytype = primitive;
         ret->evp_info = evp_ctx->evp_info;
+        printf("----Set private key len:%d, public key len:%d\n", ret->privkeylen, ret->pubkeylen);
         break;
     case KEY_TYPE_HYB_SIG:
         ret->oqsx_provider_ctx.oqsx_qs_ctx.sig = OQS_SIG_new(oqs_name);
@@ -1720,10 +1730,15 @@ int oqsx_key_fromdata(OQSX_KEY *key, const OSSL_PARAM params[],
 // OQS key always the last of the numkeys comp keys
 static int oqsx_key_gen_oqs(OQSX_KEY *key, int gen_kem)
 {
-    if (gen_kem)
+    if (gen_kem) {
+        // How to include QKD key
+        // ffs
+        printf("----Generate PQC keypair for %s\n", key->tls_name);
+        //key->tls_name: p256_kyber512_oqkd
         return OQS_KEM_keypair(key->oqsx_provider_ctx.oqsx_qs_ctx.kem,
                                key->comp_pubkey[key->numkeys - 1],
                                key->comp_privkey[key->numkeys - 1]);
+    }
     else {
         return OQS_SIG_keypair(key->oqsx_provider_ctx.oqsx_qs_ctx.sig,
                                key->comp_pubkey[key->numkeys - 1],
@@ -1857,6 +1872,7 @@ int oqsx_key_gen(OQSX_KEY *key)
                         key->privkeylen, key->pubkeylen);
 
         key->classical_pkey = pkey;
+        // ffs check if it is oqkd
         ret = oqsx_key_gen_oqs(key, key->keytype != KEY_TYPE_HYB_SIG);
     } else if (key->keytype == KEY_TYPE_CMP_SIG) {
         int i;

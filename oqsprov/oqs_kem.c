@@ -118,6 +118,7 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     const OQS_KEM *kem_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
 
     OQS_KEM_PRINTF("OQS KEM provider called: encaps\n");
+    printf("----OQS KEM provider called: encaps for keyslot:%d\n", keyslot);
     if (pkemctx->kem == NULL) {
         OQS_KEM_PRINTF("OQS Warning: OQS_KEM not initialized\n");
         return -1;
@@ -158,6 +159,12 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     *outlen = kem_ctx->length_ciphertext;
     *secretlen = kem_ctx->length_shared_secret;
 
+    printf("----REAL OQS_KEM_encaps for slot:%d\n", keyslot);
+    // For triple key exchange
+    // comp_pubkey is subfixed by QKD peer site id.
+    // add QKD keyinfo to end of ciphertext/out
+    // add QKD key to secret
+    // ffs
     return OQS_SUCCESS
            == OQS_KEM_encaps(kem_ctx, out, secret,
                              pkemctx->kem->comp_pubkey[keyslot]);
@@ -206,6 +213,8 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
     }
     *outlen = kem_ctx->length_shared_secret;
 
+    printf("----REAL OQS_KEM_decaps for slot:%d\n", keyslot);
+    // ffs, add QKD key to sharesecret/out
     return OQS_SUCCESS
            == OQS_KEM_decaps(kem_ctx, out, in,
                              pkemctx->kem->comp_privkey[keyslot]);
@@ -395,6 +404,7 @@ static int oqs_hyb_kem_encaps(void *vpkemctx, unsigned char *ct, size_t *ctlen,
     secret0 = secret;
     secret1 = secret + secretLen0;
 
+    printf("----oqs_hyb_kem_encaps\n");
     ret = oqs_evp_kem_encaps_keyslot(vpkemctx, ct0, &ctLen0, secret0,
                                      &secretLen0, 0);
     ON_ERR_SET_GOTO(ret <= 0, ret, OQS_ERROR, err);
@@ -441,6 +451,7 @@ static int oqs_hyb_kem_decaps(void *vpkemctx, unsigned char *secret,
     secret0 = secret;
     secret1 = secret + secretLen0;
 
+    printf("----oqs_hyb_kem_encaps\n");
     ret = oqs_evp_kem_decaps_keyslot(vpkemctx, secret0, &secretLen0, ct0,
                                      ctLen0, 0);
     ON_ERR_SET_GOTO(ret <= 0, ret, OQS_ERROR, err);
