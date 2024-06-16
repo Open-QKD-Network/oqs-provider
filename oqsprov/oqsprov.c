@@ -1117,3 +1117,17 @@ end_init:
     }
     return rc;
 }
+
+int is_oqkd_triple_key(const char *tls_name) {
+    if (tls_name == NULL || strlen(tls_name) <= 4) {
+        return 0;
+    }
+    int len = strlen(tls_name);
+    if ((tls_name[len - 4] == 'o') &&
+        (tls_name[len - 3] == 'q') &&
+        (tls_name[len - 2] == 'k') &&
+        (tls_name[len - 1] == 'd')) {
+        return 1;
+    }
+    return 0;
+}

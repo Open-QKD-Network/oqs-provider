@@ -116,6 +116,7 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
 {
     const PROV_OQSKEM_CTX *pkemctx = (PROV_OQSKEM_CTX *)vpkemctx;
     const OQS_KEM *kem_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
+    int is_oqkd = 0;
 
     OQS_KEM_PRINTF("OQS KEM provider called: encaps\n");
     printf("----OQS KEM provider called: encaps for keyslot:%d\n", keyslot);
@@ -128,16 +129,26 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
         OQS_KEM_PRINTF("OQS Warning: public key is NULL\n");
         return -1;
     }
+    is_oqkd = is_oqkd_triple_key(pkemctx->kem->tls_name);
+    printf("tls_name:%s\n", pkemctx->kem->tls_name);
     if (out == NULL || secret == NULL) {
         if (outlen != NULL) {
             *outlen = kem_ctx->length_ciphertext;
+            if (is_oqkd == 1) {
+                // invoke oqkd newKey API to return the key, append keyinfo to ciphertext
+                // pkemctx->kem->tls_name: p256_kyber512_oqkd
+                *outlen = kem_ctx->length_ciphertext + OQKD_CIPHER_TEXT_LEN;
+            }
         }
         if (secretlen != NULL) {
             *secretlen = kem_ctx->length_shared_secret;
+            if (is_oqkd == 1) {
+                *secretlen = kem_ctx->length_shared_secret + OQKD_SHARED_KEY_LEN;
+            }
         }
         OQS_KEM_PRINTF3("KEM returning lengths %ld and %ld\n",
-                        kem_ctx->length_ciphertext,
-                        kem_ctx->length_shared_secret);
+                        *outlen,
+                        *secretlen);
         return 1;
     }
     if (outlen == NULL) {
@@ -156,8 +167,22 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
         OQS_KEM_PRINTF("OQS Warning: secret buffer too small\n");
         return -1;
     }
+    if ((is_oqkd == 1) &&
+        (*outlen < (kem_ctx->length_ciphertext + OQKD_CIPHER_TEXT_LEN))) {
+        OQS_KEM_PRINTF("OQS Warning: cipher text buffer too small for OQKD triple key exchange\n");
+        return -1;
+    }
+    if ((is_oqkd == 1) &&
+        (*secretlen < (kem_ctx->length_shared_secret + OQKD_SHARED_KEY_LEN))) {
+        OQS_KEM_PRINTF("OQS Warning: secret text buffer too small for OQKD triple key exchange\n");
+        return -1;
+    }
     *outlen = kem_ctx->length_ciphertext;
     *secretlen = kem_ctx->length_shared_secret;
+    if (is_oqkd == 1) {
+        *outlen = kem_ctx->length_ciphertext + OQKD_CIPHER_TEXT_LEN;
+        *secretlen = kem_ctx->length_shared_secret + OQKD_SHARED_KEY_LEN;
+    }
 
     printf("----REAL OQS_KEM_encaps for slot:%d\n", keyslot);
     // For triple key exchange
@@ -176,6 +201,9 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
 {
     const PROV_OQSKEM_CTX *pkemctx = (PROV_OQSKEM_CTX *)vpkemctx;
     const OQS_KEM *kem_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
+    int is_oqkd = 0;
+    int expected_inlen = 0;
+    int expected_outlen = 0;
 
     OQS_KEM_PRINTF("OQS KEM provider called: decaps\n");
     if (pkemctx->kem == NULL) {
@@ -187,15 +215,23 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
         OQS_KEM_PRINTF("OQS Warning: private key is NULL\n");
         return -1;
     }
+    is_oqkd = is_oqkd_triple_key(pkemctx->kem->tls_name);
     if (out == NULL) {
         if (outlen != NULL) {
             *outlen = kem_ctx->length_shared_secret;
         }
+        if (is_oqkd == 1) {
+            *outlen = kem_ctx->length_shared_secret + OQKD_SHARED_KEY_LEN;
+        }
         OQS_KEM_PRINTF2("KEM returning length %ld\n",
-                        kem_ctx->length_shared_secret);
+                        *outlen);
         return 1;
     }
-    if (inlen != kem_ctx->length_ciphertext) {
+    expected_inlen = kem_ctx->length_ciphertext;
+    if (is_oqkd == 1) {
+        expected_inlen += OQKD_CIPHER_TEXT_LEN;
+    }
+    if (inlen != expected_inlen) {
         OQS_KEM_PRINTF("OQS Warning: wrong input length\n");
         return 0;
     }
@@ -207,13 +243,18 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
         OQS_KEM_PRINTF("OQS Warning: outlen is NULL\n");
         return -1;
     }
-    if (*outlen < kem_ctx->length_shared_secret) {
+    expected_outlen = kem_ctx->length_shared_secret;
+    if (is_oqkd == 1) {
+        expected_outlen += OQKD_SHARED_KEY_LEN;
+    }
+
+    if (*outlen < expected_outlen) {
         OQS_KEM_PRINTF("OQS Warning: out buffer too small\n");
         return -1;
     }
-    *outlen = kem_ctx->length_shared_secret;
+    *outlen = expected_outlen;
 
-    printf("----REAL OQS_KEM_decaps for slot:%d\n", keyslot);
+    printf("----REAL OQS_KEM_decaps for slot:%d, inlen:%d, outlen:%d\n", keyslot, inlen, *outlen);
     // ffs, add QKD key to sharesecret/out
     return OQS_SUCCESS
            == OQS_KEM_decaps(kem_ctx, out, in,
@@ -425,6 +466,7 @@ static int oqs_hyb_kem_decaps(void *vpkemctx, unsigned char *secret,
     const PROV_OQSKEM_CTX *pkemctx = (PROV_OQSKEM_CTX *)vpkemctx;
     const OQSX_EVP_CTX *evp_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_evp_ctx;
     const OQS_KEM *qs_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
+    int is_oqkd = 0;
 
     size_t secretLen0 = 0, secretLen1 = 0;
     size_t ctLen0 = 0, ctLen1 = 0;
@@ -438,11 +480,16 @@ static int oqs_hyb_kem_decaps(void *vpkemctx, unsigned char *secret,
 
     *secretlen = secretLen0 + secretLen1;
 
+    printf("*****oqs_hyb_kem_decaps:secret:%p, ctlen:%d\n", secret, ctlen);
     if (secret == NULL)
         return 1;
 
+    is_oqkd = is_oqkd_triple_key(pkemctx->kem->tls_name);
     ctLen0 = evp_ctx->evp_info->length_public_key;
     ctLen1 = qs_ctx->length_ciphertext;
+    if (is_oqkd == 1) {
+        ctLen1 += OQKD_CIPHER_TEXT_LEN;
+    }
 
     ON_ERR_SET_GOTO(ctLen0 + ctLen1 != ctlen, ret, OQS_ERROR, err);
 

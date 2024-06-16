@@ -1925,8 +1925,14 @@ int oqsx_key_maxsize(OQSX_KEY *key)
         return key->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_shared_secret;
     case KEY_TYPE_ECP_HYB_KEM:
     case KEY_TYPE_ECX_HYB_KEM:
-        return key->oqsx_provider_ctx.oqsx_evp_ctx->evp_info->kex_length_secret
+        if (is_oqkd_triple_key(key->tls_name) == 0) {
+            return key->oqsx_provider_ctx.oqsx_evp_ctx->evp_info->kex_length_secret
                + key->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_shared_secret;
+        } else {
+            return key->oqsx_provider_ctx.oqsx_evp_ctx->evp_info->kex_length_secret
+               + key->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_shared_secret
+	       + OQKD_SHARED_KEY_LEN;
+        }
     case KEY_TYPE_SIG:
         return key->oqsx_provider_ctx.oqsx_qs_ctx.sig->length_signature;
     case KEY_TYPE_HYB_SIG:
