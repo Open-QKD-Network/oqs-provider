@@ -331,6 +331,7 @@ static int oqsx_key_set_composites(OQSX_KEY *key)
                 key->comp_pubkey[1]
                     = (char *)key->pubkey + classic_pubkey_len + SIZE_OF_UINT32;
 		printf("----Set composite pub :%p\n", key->pubkey);
+		printf("----Set composite pub key length :%d\n", key->pubkeylen);
 		printf("----Set composite pub0:%p\n", key->comp_pubkey[0]);
 		printf("----Set composite pub0:%p\n", key->comp_pubkey[1]);
 		printf("----Set composite priv :%p\n", key->privkey);
@@ -1463,6 +1464,9 @@ OQSX_KEY *oqsx_key_new(OSSL_LIB_CTX *libctx, char *oqs_name, char *tls_name,
             = (ret->numkeys - 1) * SIZE_OF_UINT32
               + ret->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_public_key
               + evp_ctx->evp_info->length_public_key;
+        if (is_oqkd_triple_key(tls_name) == 1) {
+            ret->pubkeylen += OQKD_PUBLIC_KEY_LEN;
+        }
         ret->oqsx_provider_ctx.oqsx_evp_ctx = evp_ctx;
         ret->keytype = primitive;
         ret->evp_info = evp_ctx->evp_info;
@@ -1731,13 +1735,28 @@ int oqsx_key_fromdata(OQSX_KEY *key, const OSSL_PARAM params[],
 static int oqsx_key_gen_oqs(OQSX_KEY *key, int gen_kem)
 {
     if (gen_kem) {
-        // How to include QKD key
-        // ffs
+        int ret = 0;
+        int is_oqkd = is_oqkd_triple_key(key->tls_name);
         printf("----Generate PQC keypair for %s\n", key->tls_name);
         //key->tls_name: p256_kyber512_oqkd
-        return OQS_KEM_keypair(key->oqsx_provider_ctx.oqsx_qs_ctx.kem,
+        ret = OQS_KEM_keypair(key->oqsx_provider_ctx.oqsx_qs_ctx.kem,
                                key->comp_pubkey[key->numkeys - 1],
                                key->comp_privkey[key->numkeys - 1]);
+        if (is_oqkd == 0) {
+            return ret;
+        } else {
+            if (ret != OQS_SUCCESS) {
+                printf("----Generating OQS keypair fails\n");
+                return ret;
+            }
+            // invoke OQKD API to get OQKD public key
+            const char* oqkd_pub_key = "siteid=A";
+            memcpy(key->comp_pubkey[1] +
+                   key->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_public_key,
+                   oqkd_pub_key,
+                   sizeof(oqkd_pub_key));
+	    return ret;
+        }
     }
     else {
         return OQS_SIG_keypair(key->oqsx_provider_ctx.oqsx_qs_ctx.sig,

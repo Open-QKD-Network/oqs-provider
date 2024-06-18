@@ -117,6 +117,7 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     const PROV_OQSKEM_CTX *pkemctx = (PROV_OQSKEM_CTX *)vpkemctx;
     const OQS_KEM *kem_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
     int is_oqkd = 0;
+    int ret = 0;
 
     OQS_KEM_PRINTF("OQS KEM provider called: encaps\n");
     printf("----OQS KEM provider called: encaps for keyslot:%d\n", keyslot);
@@ -184,15 +185,34 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
         *secretlen = kem_ctx->length_shared_secret + OQKD_SHARED_KEY_LEN;
     }
 
-    printf("----REAL OQS_KEM_encaps for slot:%d\n", keyslot);
+    printf("----REAL OQS_KEM_encaps for slot:%d, outlen:%d, secretlen:%d\n", keyslot, *outlen, *secretlen);
     // For triple key exchange
     // comp_pubkey is subfixed by QKD peer site id.
     // add QKD keyinfo to end of ciphertext/out
     // add QKD key to secret
-    // ffs
-    return OQS_SUCCESS
+    if (is_oqkd == 1) {
+        const char oqkd_client_pub_key[OQKD_PUBLIC_KEY_LEN + 1] = {0};
+        memcpy(oqkd_client_pub_key,
+               pkemctx->kem->comp_pubkey[1] + kem_ctx->length_public_key,
+               OQKD_PUBLIC_KEY_LEN);
+        // invoke OQKD newkey API
+        printf("----Server side OQKD newkey URL:%s\n", oqkd_client_pub_key);
+    }
+    memset(out, 0, *outlen);
+    memset(secret, 0, *secretlen);
+    ret = OQS_SUCCESS
            == OQS_KEM_encaps(kem_ctx, out, secret,
                              pkemctx->kem->comp_pubkey[keyslot]);
+    if (is_oqkd == 0) {
+        return ret;
+    } else {
+        // hardcode OQKD cipher text/secret
+        //const char *oqkd_cipher_text = "siteid=B,keyid=1000,uuid=b005a4fa-268f-4f5a-bcb2-4c0e4fb39f1a";
+        //const char *oqkd_shared_secret = "1d8ef14421aaa8wd";
+        //memcpy(out + kem_ctx->length_ciphertext, oqkd_cipher_text, OQKD_CIPHER_TEXT_LEN);
+        //memcpy(secret + kem_ctx->length_shared_secret, oqkd_shared_secret, OQKD_SHARED_SECRET_LEN);
+        return ret;
+    }
 }
 
 static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
