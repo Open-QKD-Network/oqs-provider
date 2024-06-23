@@ -209,13 +209,17 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
         // hardcode OQKD cipher text/secret
 	// ffs, invoke OpenQKDNetwork API
         const char *oqkd_cipher_text = "siteid=B,keyid=1000,uuid=b005a4fa-268f-4f5a-bcb2-4c0e4fb39f1a";
-        //const char *oqkd_shared_secret = "1d8ef14421aaa8wd";
+        const char *oqkd_shared_secret = "1d8ef14421aaa8wd9902402845fecd4c";
         int len = strlen(oqkd_cipher_text);
         if (len > OQKD_CIPHER_TEXT_LEN) {
             len = OQKD_CIPHER_TEXT_LEN;
         }
         memcpy(out + kem_ctx->length_ciphertext, oqkd_cipher_text, len);
-        //memcpy(secret + kem_ctx->length_shared_secret, oqkd_shared_secret, OQKD_SHARED_SECRET_LEN);
+        len = strlen(oqkd_shared_secret);
+        if (len > OQKD_SHARED_KEY_LEN) {
+            len = OQKD_SHARED_KEY_LEN;
+        }
+        memcpy(secret + kem_ctx->length_shared_secret, oqkd_shared_secret, len);
         return ret;
     }
 }
@@ -285,14 +289,17 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
             == OQS_KEM_decaps(kem_ctx, out, in,
                              pkemctx->kem->comp_privkey[keyslot]);
     } else {
+        int ret;
         // add QKD key to sharesecret/out
         const char oqkd_key_info[OQKD_CIPHER_TEXT_LEN] = {0};
+        // ffs, invoke OpenQKDNetwork API
+        const char *oqkd_shared_secret = "1d8ef14421aaa8wd9902402845fecd4c";
         memcpy(oqkd_key_info, in + kem_ctx->length_ciphertext, OQKD_CIPHER_TEXT_LEN);
         printf("--- OpenQKDNetwork getkeyinfo:%s\n", oqkd_key_info);
-        // ffs, invoke OpenQKDNetwork API
-        return OQS_SUCCESS
-            == OQS_KEM_decaps(kem_ctx, out, in,
+        ret = OQS_KEM_decaps(kem_ctx, out, in,
                              pkemctx->kem->comp_privkey[keyslot]);
+        memcpy(out + kem_ctx->length_shared_secret, oqkd_shared_secret, OQKD_SHARED_KEY_LEN);
+        return ret == OQS_SUCCESS;
     }
 }
 
