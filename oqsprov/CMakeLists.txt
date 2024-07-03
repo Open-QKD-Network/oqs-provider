@@ -81,7 +81,18 @@ if (NOT OQS_PROVIDER_BUILD_STATIC)
   endif()
 endif()
 
-target_link_libraries(oqsprovider PUBLIC OQS::oqs ${OPENSSL_CRYPTO_LIBRARY} ${OQS_ADDL_SOCKET_LIBS})
+#OpenQKD related libraries
+add_library(libopenqkd STATIC IMPORTED)
+get_filename_component(LIB_OPENQKD_LIB_PATH ../openqkd/lib/libopenqkd.a ABSOLUTE)
+get_filename_component(LIB_OPENQKD_INCLUDE_PATH ../openqkd/include ABSOLUTE)
+#set_target_properties(libopenqkd PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${LIB_OPENQKD_INCLUDE_PATH})
+set_target_properties(libopenqkd PROPERTIES IMPORTED_LOCATION ${LIB_OPENQKD_LIB_PATH})
+
+find_library(CURL curl)
+find_library(JSONC json-c)
+
+target_include_directories(oqsprovider PRIVATE ${LIB_OPENQKD_INCLUDE_PATH})
+target_link_libraries(oqsprovider PUBLIC OQS::oqs ${OPENSSL_CRYPTO_LIBRARY} ${OQS_ADDL_SOCKET_LIBS} libopenqkd ${CURL} ${JSONC})
 if (USE_ENCODING_LIB)
   target_link_libraries(oqsprovider PUBLIC qsc_key_encoder)
   target_include_directories(oqsprovider PRIVATE ${encoder_LIBRARY_INCLUDE})

@@ -18,6 +18,8 @@
 #include <openssl/x509.h>
 #include <string.h>
 
+#include "openqkd.h"
+
 #ifdef NDEBUG
 #    define OQS_KEY_PRINTF(a)
 #    define OQS_KEY_PRINTF2(a, b)
@@ -1750,6 +1752,12 @@ static int oqsx_key_gen_oqs(OQSX_KEY *key, int gen_kem)
                 return ret;
             }
             // invoke OQKD API to get OQKD public key
+            char* newkey_url = NULL;
+            if (oqkd_get_new_key_url(&newkey_url) == 0) {
+                printf("New key URL:%s\n", newkey_url);
+            } else {
+                printf("Fails to get newkey url\n");
+            }
             const char* oqkd_pub_key = "siteid=A";
             memcpy(key->comp_pubkey[1] +
                    key->oqsx_provider_ctx.oqsx_qs_ctx.kem->length_public_key,
