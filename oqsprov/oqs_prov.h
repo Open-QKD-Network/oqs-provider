@@ -1250,8 +1250,8 @@ int oqs_prov_bio_printf(OSSL_CORE_BIO *bio, const char *format, ...);
 BIO_METHOD *oqs_bio_prov_init_bio_method(void);
 BIO *oqs_bio_new_from_core_bio(PROV_OQS_CTX *provctx, OSSL_CORE_BIO *corebio);
 
-#define OQKD_PUBLIC_KEY_LEN  16
-#define OQKD_CIPHER_TEXT_LEN 256
-#define OQKD_SHARED_KEY_LEN  32
+#define OQKD_PUBLIC_KEY_LEN  64
+#define OQKD_CIPHER_TEXT_LEN 128
+#define OQKD_SHARED_KEY_LEN  64
 int is_oqkd_triple_key(const char *tls_name);
 #endif

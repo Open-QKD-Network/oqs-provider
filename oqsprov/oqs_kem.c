@@ -18,6 +18,8 @@
 #include <openssl/params.h>
 #include <string.h>
 
+#include "openqkd.h"
+
 #ifdef NDEBUG
 #    define OQS_KEM_PRINTF(a)
 #    define OQS_KEM_PRINTF2(a, b)
@@ -118,6 +120,10 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     const OQS_KEM *kem_ctx = pkemctx->kem->oqsx_provider_ctx.oqsx_qs_ctx.kem;
     int is_oqkd = 0;
     int ret = 0;
+    const char oqkd_client_pub_key[OQKD_PUBLIC_KEY_LEN + 1] = {0};
+    char *oqkd_key = NULL;
+    char *oqkd_get_key_url = NULL;
+    int oqkd_key_len = 0;
 
     OQS_KEM_PRINTF("OQS KEM provider called: encaps\n");
     printf("----OQS KEM provider called: encaps for keyslot:%d\n", keyslot);
@@ -191,12 +197,17 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     // add QKD keyinfo to end of ciphertext/out
     // add QKD key to secret
     if (is_oqkd == 1) {
-        const char oqkd_client_pub_key[OQKD_PUBLIC_KEY_LEN + 1] = {0};
         memcpy(oqkd_client_pub_key,
                pkemctx->kem->comp_pubkey[1] + kem_ctx->length_public_key,
                OQKD_PUBLIC_KEY_LEN);
         // invoke OpenQKDNetwork newkey API
         printf("----OpenQKDNetwork newkey URL:%s\n", oqkd_client_pub_key);
+        if (oqkd_new_key(oqkd_client_pub_key, &oqkd_key, &oqkd_key_len, &oqkd_get_key_url) != 0) {
+            printf("Fails to new OpenQKD !!!\n");
+        } else {
+            printf("OpenQKDNetwork getkeyurl:%s\n", oqkd_get_key_url);
+            printf("OpenQKDNetwork key:%s\n", oqkd_key);
+        }
     }
     memset(out, 0, *outlen);
     memset(secret, 0, *secretlen);
@@ -206,20 +217,22 @@ static int oqs_qs_kem_encaps_keyslot(void *vpkemctx, unsigned char *out,
     if (is_oqkd == 0) {
         return ret;
     } else {
-        // hardcode OQKD cipher text/secret
-	// ffs, invoke OpenQKDNetwork API
-        const char *oqkd_cipher_text = "siteid=B,keyid=1000,uuid=b005a4fa-268f-4f5a-bcb2-4c0e4fb39f1a";
-        const char *oqkd_shared_secret = "1d8ef14421aaa8wd9902402845fecd4c";
-        int len = strlen(oqkd_cipher_text);
+        int len = strlen(oqkd_get_key_url);
         if (len > OQKD_CIPHER_TEXT_LEN) {
             len = OQKD_CIPHER_TEXT_LEN;
         }
-        memcpy(out + kem_ctx->length_ciphertext, oqkd_cipher_text, len);
-        len = strlen(oqkd_shared_secret);
+        memcpy(out + kem_ctx->length_ciphertext, oqkd_get_key_url, len);
+        len = strlen(oqkd_key);
         if (len > OQKD_SHARED_KEY_LEN) {
             len = OQKD_SHARED_KEY_LEN;
         }
-        memcpy(secret + kem_ctx->length_shared_secret, oqkd_shared_secret, len);
+        memcpy(secret + kem_ctx->length_shared_secret, oqkd_key, len);
+        if (oqkd_get_key_url) {
+            free(oqkd_get_key_url);
+        }
+        if (oqkd_key) {
+            free(oqkd_key);
+        }
         return ret;
     }
 }
@@ -292,13 +305,21 @@ static int oqs_qs_kem_decaps_keyslot(void *vpkemctx, unsigned char *out,
         int ret;
         // add QKD key to sharesecret/out
         const char oqkd_key_info[OQKD_CIPHER_TEXT_LEN] = {0};
-        // ffs, invoke OpenQKDNetwork API
-        const char *oqkd_shared_secret = "1d8ef14421aaa8wd9902402845fecd4c";
+        char *oqkd_key = NULL;
+        int oqkd_key_len = 0;
         memcpy(oqkd_key_info, in + kem_ctx->length_ciphertext, OQKD_CIPHER_TEXT_LEN);
         printf("--- OpenQKDNetwork getkeyinfo:%s\n", oqkd_key_info);
+        if (oqkd_get_key(oqkd_key_info, &oqkd_key, &oqkd_key_len) != 0) {
+            printf("Fails to get OpenQKDNetwork key with keyinfo :%s!!!\n", oqkd_key_info);
+        } else {
+            printf("OpenQKDNetwork key:%s\n", oqkd_key);
+        }
         ret = OQS_KEM_decaps(kem_ctx, out, in,
                              pkemctx->kem->comp_privkey[keyslot]);
-        memcpy(out + kem_ctx->length_shared_secret, oqkd_shared_secret, OQKD_SHARED_KEY_LEN);
+        memcpy(out + kem_ctx->length_shared_secret, oqkd_key, OQKD_SHARED_KEY_LEN);
+        if (oqkd_key) {
+            free(oqkd_key);
+        }
         return ret == OQS_SUCCESS;
     }
 }
